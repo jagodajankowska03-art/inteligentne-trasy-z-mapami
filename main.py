@@ -1,10 +1,8 @@
-from flask import Flask, render_template, request, jsonify
-import sqlite3
+from flask import Flask, render_template, request
 import folium
 import json
 import requests
 app = Flask(__name__)
-DB_PATH = 'db/debiut.db'
 CACHE_FILE = 'cache.json'
 # Wczytanie cache współrzędnych
 try:
@@ -28,14 +26,7 @@ def geocode(adres):
         with open(CACHE_FILE, 'w') as f:
             json.dump(cache, f)
         return lat, lon
-    return None, None  # brak wyników geokodowania
-def get_clients():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT id, nazwa, adres FROM Klienci")
-    clients = c.fetchall()
-    conn.close()
-    return clients
+    return None, None
 @app.route("/", methods=['GET', 'POST'])
 def index():
     map_html = None
@@ -48,28 +39,25 @@ def index():
                 coords.append((a, lat, lon))
         if coords:
             m = folium.Map(location=[coords[0][1], coords[0][2]], zoom_start=12)
-            colors = ['red', 'blue', 'green']
-            for i, (adres, lat, lon) in enumerate(coords):
-                folium.Marker([lat, lon], popup=adres, icon=folium.Icon(color=colors[i%3])).add_to(m)
+            colors = ['red', 'blue', 'green']  # trzy kolory dla kierowców
+            # Podział adresów na 3 kierowców
+            driver_coords = [[], [], []]
+            for i, point in enumerate(coords):
+                driver_coords[i % 3].append(point)
+            for idx, driver in enumerate(driver_coords):
+                color = colors[idx]
+                # Dodanie markerów
+                for adres, lat, lon in driver:
+                    folium.Marker([lat, lon], popup=f"Kierowca {idx+1}: {adres}",
+                                  icon=folium.Icon(color=color)).add_to(m)
+                # Dodanie linii trasy
+                if len(driver) >= 2:
+                    folium.PolyLine([(lat, lon) for _, lat, lon in driver],
+                                    color=color, weight=4, opacity=0.7).add_to(m)
             map_html = m._repr_html_()
     return render_template('index.html', map_html=map_html)
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-
-
-
-
-
-
-
-
-Jot something down
-
-
 
 
 
