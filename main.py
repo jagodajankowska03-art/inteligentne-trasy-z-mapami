@@ -6,8 +6,20 @@ def geocode(adres):
     url = "https://nominatim.openstreetmap.org/search"
     params = {"q": adres, "format": "json"}
     r = requests.get(url, params=params).json()
-    if r:
-        return float(r[0]["lat"]), float(r[0]["lon"])
+   try:
+    response = requests.get(url, timeout=5)
+    r = response.json()
+except (ValueError, requests.exceptions.RequestException):
+    r = []
+if r:
+    lat = float(r[0]['lat'])
+    lon = float(r[0]['lon'])
+    cache[adres] = (lat, lon)
+    with open(CACHE_FILE, 'w') as f:
+        json.dump(cache, f)
+    return lat, lon
+# jeśli brak wyników
+return None, None
     return None
 # Algorytm najbliższego sąsiada
 def nearest_neighbor(coords):
